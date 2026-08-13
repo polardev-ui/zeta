@@ -99,3 +99,11 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: error.message || 'AI request failed' });
   }
 };
+
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb', // Increases max payload size for Base64 images
+    },
+  },
+};
