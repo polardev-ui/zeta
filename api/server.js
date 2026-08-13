@@ -98,18 +98,33 @@ function handleAPIRequest(req, res) {
           return;
         }
 
-        const response = await fetch('https://api.wsgpolar.me/v1/ai/chat', {
+        // 1. Pass API key in the query string as required by the endpoint docs
+        const targetUrl = `https://api.wsgpolar.me/v1/ai/chat?API=${encodeURIComponent(apiKey)}`;
+
+        const response = await fetch(targetUrl, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({ model, messages })
         });
-        const data = await response.json();
+
+        // 2. Safely parse JSON response to prevent unhandled JSON parse crashes
+        const responseText = await response.text();
+        let data;
+        try {
+          data = JSON.parse(responseText);
+        } catch (jsonErr) {
+          console.error('Upstream returned non-JSON:', responseText);
+          res.writeHead(502, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Upstream AI endpoint returned an invalid response' }));
+          return;
+        }
+
         res.writeHead(response.status, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(data));
       } catch (error) {
+        console.error('AI Route Error:', error);
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: error.message || 'AI request failed' }));
       }
