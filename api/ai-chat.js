@@ -1,4 +1,4 @@
-const AI_API_URL = 'https://api.wsgpolar.me/v1/ai/chat';
+const AI_API_BASE_URL = 'https://api.wsgpolar.me/v1/ai/chat';
 const ALLOWED_MODELS = new Set(['llama-3.1-8b-instant']);
 
 module.exports = async function handler(req, res) {
@@ -11,7 +11,17 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: 'AI service not configured' });
   }
 
-  const { model, messages } = req.body || {};
+  // Handle stringified bodies cleanly
+  let body = req.body;
+  if (typeof body === 'string') {
+    try {
+      body = JSON.parse(body);
+    } catch (e) {
+      return res.status(400).json({ error: 'Invalid JSON body' });
+    }
+  }
+
+  const { model, messages } = body || {};
 
   if (!model || !ALLOWED_MODELS.has(model)) {
     return res.status(400).json({ error: 'Invalid model' });
@@ -31,11 +41,13 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const response = await fetch(AI_API_URL, {
+    // Append the API key as a query parameter
+    const targetUrl = `${AI_API_BASE_URL}?API=${encodeURIComponent(apiKey)}`;
+
+    const response = await fetch(targetUrl, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({ model, messages })
     });
@@ -43,6 +55,7 @@ module.exports = async function handler(req, res) {
     const data = await response.json();
     return res.status(response.status).json(data);
   } catch (error) {
+    console.error('AI Route Error:', error);
     return res.status(500).json({ error: error.message || 'AI request failed' });
   }
 };
